@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM app with Lambda that fetches openweather data and stores it in S3
+
+Globals:
+  Function:
+    Timeout: 15
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+
+Resources:
+  FetchAndStoreFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: data-lake-energy-trade-bronze-openweather
+      CodeUri: src/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          BUCKET_NAME: data-lake-energy-trade
+      Policies:
+        - S3WritePolicy:
+            BucketName: data-lake-energy-trade
+
+Outputs:
+  FunctionName:
+    Value: !Ref FetchAndStoreFunction
+
+  BucketName:
+    Value: data-lake-energy-trade
