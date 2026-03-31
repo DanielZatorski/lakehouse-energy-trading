@@ -1,0 +1,1 @@
+{"statusCode": 200, "body": "{\"message\": \"Saved data to s3://data-lake-energy-trade/raw/pokemon/pikachu.json\"}"}
