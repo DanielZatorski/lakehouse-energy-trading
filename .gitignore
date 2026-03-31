@@ -143,7 +143,6 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-samconfig.toml
 
 # Spyder project settings
 .spyderproject
