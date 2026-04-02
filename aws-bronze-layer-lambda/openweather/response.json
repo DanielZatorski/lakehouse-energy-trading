@@ -1,0 +1,1 @@
+{"statusCode": 200, "body": "{\"message\": \"Weather data written to bronze layer.\", \"bucket\": \"data-lake-energy-trade\", \"key\": \"bronze/openweather/current/year=2026/month=04/day=02/hour=11/current_2026-04-02T11-51-29Z.jsonl\", \"record_count\": 28}"}
