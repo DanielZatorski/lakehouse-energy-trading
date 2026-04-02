@@ -24,7 +24,9 @@ def fetch_current_weather(weather_points):
                 "wind_gusts_10m",
                 "wind_speed_10m",
                 "wind_direction_10m",
-                "shortwave_radiation"
+                "shortwave_radiation",
+                "global_tilted_irradiance",
+                "diffuse_radiation",
             ],
         }
 
@@ -56,6 +58,8 @@ def fetch_current_weather(weather_points):
                 "wind_speed_10m": current.Variables(6).Value(),
                 "wind_direction_10m": current.Variables(7).Value(),
                 "shortwave_radiation":current.Variables(8).Value(),
+                "global_tilted_irradiance":current.Variables(9).Value(),
+                "diffuse_radiation": current.Variables(10).Value(),
             }
 
             results.append(row)
