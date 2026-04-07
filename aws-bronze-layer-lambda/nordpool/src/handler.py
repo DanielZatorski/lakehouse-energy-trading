@@ -3,43 +3,38 @@ import json
 import boto3
 import requests
 import certifi
+from entsoe import *
+
 
 s3 = boto3.client("s3")
-BUCKET_NAME = os.environ["BUCKET_NAME"]
+BUCKET_NAME =  os.environ["BUCKET_NAME"]
+
+
 
 def lambda_handler(event, context):
-    url = "https://pokeapi.co/api/v2/pokemon/pikachu"
+    if event and event.get("period_start") and event.get("period_end"):
+        period_start = event["period_start"]
+        period_end = event["period_end"]
+    else:
+        period_start, period_end = get_hourly_window()
 
-    try:
-        response = requests.get(url, timeout=30, verify=certifi.where())
-        response.raise_for_status()
-        data = response.json()
+    result = run_entsoe_bronze_ingestion(
+        period_start=period_start,
+        period_end=period_end,
+    )
 
-        s3.put_object(
-            Bucket=BUCKET_NAME,
-            Key="raw/pokemon/pikachu.json",
-            Body=json.dumps(data).encode("utf-8"),
-            ContentType="application/json"
-        )
+    return {
+        "statusCode": 200,
+        "body": json.dumps(result),
+    }
 
-        return {
-            "statusCode": 200,
-            "body": json.dumps({
-                "message": f"Saved data to s3://{BUCKET_NAME}/raw/pokemon/pikachu.json"
-            })
-        }
 
-    except requests.exceptions.SSLError as e:
-        return {
-            "statusCode": 500,
-            "body": json.dumps({
-                "error": f"SSL error: {str(e)}"
-            })
-        }
-    except Exception as e:
-        return {
-            "statusCode": 500,
-            "body": json.dumps({
-                "error": str(e)
-            })
-        }
+#if __name__ == "__main__":
+#    period_start, period_end = get_last_closed_hour_window()
+
+#    result = run_entsoe_bronze_ingestion(
+#        period_start=period_start,
+#        period_end=period_end,
+#    )
+#
+#       print(json.dumps(result, indent=2))

@@ -1,0 +1,11 @@
+bronze/entsoe/actual_total_load/year=2026/month=04/day=03/hour=11/actual_total_load_2026-04-03T11-30-13Z.jsonl
+
+bronze/entsoe/day_ahead_total_load_forecast/year=2026/month=04/day=03/hour=11/day_ahead_total_load_forecast_2026-04-03T11-30-13Z.jsonl
+
+bronze/entsoe/day_ahead_energy_prices/year=2026/month=04/day=03/hour=11/day_ahead_energy_prices_2026-04-03T11-30-13Z.jsonl
+
+bronze/entsoe/day_ahead_aggregated_generation/year=2026/month=04/day=03/hour=11/day_ahead_aggregated_generation_2026-04-03T11-30-13Z.jsonl
+
+bronze/entsoe/generation_forecast_wind_solar/year=2026/month=04/day=03/hour=11/generation_forecast_wind_solar_2026-04-03T11-30-13Z.jsonl
+
+bronze/entsoe/actual_generation_per_production_type/year=2026/month=04/day=03/hour=11/actual_generation_per_production_type_2026-04-03T11-30-13Z.jsonl

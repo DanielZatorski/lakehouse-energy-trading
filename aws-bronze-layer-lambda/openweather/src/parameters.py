@@ -1,43 +1,236 @@
 weather_points = [
-    {"country_code": "DE", "country": "Germany", "technology": "wind", "cluster_name": "Lower Saxony onshore wind cluster", "lat": 52.6900, "lon": 8.2400},
-    {"country_code": "DE", "country": "Germany", "technology": "solar", "cluster_name": "Bavaria solar cluster", "lat": 48.7900, "lon": 11.5000},
+    # Germany
+    {
+        "country_code": "DE",
+        "country": "Germany",
+        "bidding_zone": "DE-LU",
+        "technology": "wind-onshore",
+        "cluster_name": "Reussenkoege Wind Farm",
+        "lat": 54.5413,
+        "lon": 8.4908,
+    },
 
-    {"country_code": "PL", "country": "Poland", "technology": "wind", "cluster_name": "Pomerania/Baltic wind cluster", "lat": 54.5000, "lon": 17.2000},
-    {"country_code": "PL", "country": "Poland", "technology": "solar", "cluster_name": "Central Poland solar cluster", "lat": 51.7700, "lon": 19.4600},
+    # Poland
+    {
+        "country_code": "PL",
+        "country": "Poland",
+        "bidding_zone": "PL",
+        "technology": "wind-onshore",
+        "cluster_name": "Potegowo Wind Farm",
+        "lat": 54.5032,
+        "lon": 17.4624,
+    },
 
-    {"country_code": "DK", "country": "Denmark", "technology": "wind", "cluster_name": "West Jutland/North Sea wind cluster", "lat": 56.2300, "lon": 8.2400},
-    {"country_code": "DK", "country": "Denmark", "technology": "solar", "cluster_name": "Jutland utility solar cluster", "lat": 55.9000, "lon": 9.2000},
+    # Denmark
+    {
+        "country_code": "DK",
+        "country": "Denmark",
+        "bidding_zone": "DK1",
+        "technology": "wind-offshore",
+        "cluster_name": "Horns Rev 3",
+        "lat": 55.7030,
+        "lon": 7.6890,
+    },
+    {
+        "country_code": "DK",
+        "country": "Denmark",
+        "bidding_zone": "DK2",
+        "technology": "wind-offshore",
+        "cluster_name": "Kriegers Flak",
+        "lat": 55.0300,
+        "lon": 12.9399,
+    },
 
-    {"country_code": "SE", "country": "Sweden", "technology": "wind", "cluster_name": "Markbygden/Norrbotten wind cluster", "lat": 65.3000, "lon": 20.0500},
-    {"country_code": "SE", "country": "Sweden", "technology": "solar", "cluster_name": "Hultsfred solar cluster", "lat": 57.4900, "lon": 15.8400},
+    # Sweden
+    {
+        "country_code": "SE",
+        "country": "Sweden",
+        "bidding_zone": "SE1",
+        "technology": "wind-onshore",
+        "cluster_name": "Markbygden Wind Farm",
+        "lat": 65.3544,
+        "lon": 20.9832,
+    },
+    {
+        "country_code": "SE",
+        "country": "Sweden",
+        "bidding_zone": "SE2",
+        "technology": "wind-onshore",
+        "cluster_name": "Blaiken Wind Farm",
+        "lat": 65.2864,
+        "lon": 17.2129,
+    },
+    {
+        "country_code": "SE",
+        "country": "Sweden",
+        "bidding_zone": "SE3",
+        "technology": "wind-offshore",
+        "cluster_name": "Vanern Wind Farm",
+        "lat": 59.2611,
+        "lon": 13.3861,
+    },
+    {
+        "country_code": "SE",
+        "country": "Sweden",
+        "bidding_zone": "SE4",
+        "technology": "wind-offshore",
+        "cluster_name": "Lillgrund Wind Farm",
+        "lat": 55.5160,
+        "lon": 12.8034,
+    },
 
-    {"country_code": "ES", "country": "Spain", "technology": "wind", "cluster_name": "Castilla y Leon wind cluster", "lat": 41.6500, "lon": -4.7300},
-    {"country_code": "ES", "country": "Spain", "technology": "solar", "cluster_name": "Extremadura solar cluster", "lat": 39.4700, "lon": -6.3700},
+    # Spain
+    {
+        "country_code": "ES",
+        "country": "Spain",
+        "bidding_zone": "ES",
+        "technology": "solar",
+        "cluster_name": "Francisco Pizarro Solar Farm",
+        "lat": 39.5731,
+        "lon": -5.7051,
+    },
 
-    {"country_code": "FR", "country": "France", "technology": "wind", "cluster_name": "Hauts-de-France wind cluster", "lat": 49.8900, "lon": 2.3000},
-    {"country_code": "FR", "country": "France", "technology": "solar", "cluster_name": "Nouvelle-Aquitaine solar cluster", "lat": 44.8400, "lon": -0.5800},
+    # France
+    {
+        "country_code": "FR",
+        "country": "France",
+        "bidding_zone": "FR",
+        "technology": "solar",
+        "cluster_name": "Cestas Solar Park",
+        "lat": 44.7262,
+        "lon": -0.8077,
+    },
 
-    {"country_code": "NL", "country": "Netherlands", "technology": "wind", "cluster_name": "Dutch North Sea/Flevoland wind cluster", "lat": 52.8500, "lon": 5.4300},
-    {"country_code": "NL", "country": "Netherlands", "technology": "solar", "cluster_name": "Flevoland solar cluster", "lat": 52.5200, "lon": 5.4700},
+    # Netherlands
+    {
+        "country_code": "NL",
+        "country": "Netherlands",
+        "bidding_zone": "NL",
+        "technology": "wind-offshore",
+        "cluster_name": "Hollandse Kust Zuid",
+        "lat": 52.3667,
+        "lon": 4.1167,
+    },
 
-    {"country_code": "IT", "country": "Italy", "technology": "wind", "cluster_name": "Apulia wind cluster", "lat": 41.4600, "lon": 15.5500},
-    {"country_code": "IT", "country": "Italy", "technology": "solar", "cluster_name": "Sicily solar cluster", "lat": 37.4900, "lon": 14.0600},
+    # Italy
+    {
+        "country_code": "IT",
+        "country": "Italy",
+        "bidding_zone": "IT-North",
+        "technology": "solar",
+        "cluster_name": "Rovigo Photovoltaic Power Plant",
+        "lat": 45.0358,
+        "lon": 11.5722,
+    },
+    {
+        "country_code": "IT",
+        "country": "Italy",
+        "bidding_zone": "IT-Centre-North",
+        "technology": "solar",
+        "cluster_name": "Montalto di Castro Solar Farm",
+        "lat": 42.3757,
+        "lon": 11.5947,
+    },
+    {
+        "country_code": "IT",
+        "country": "Italy",
+        "bidding_zone": "IT-Centre-South",
+        "technology": "solar",
+        "cluster_name": "Italy Solar Farm 1",
+        "lat": 42.1943,
+        "lon": 12.0504,
+    },
+    {
+        "country_code": "IT",
+        "country": "Italy",
+        "bidding_zone": "IT-South",
+        "technology": "solar",
+        "cluster_name": "Troia Solar Farm",
+        "lat": 41.3598,
+        "lon": 15.3712,
+    },
+    {
+        "country_code": "IT",
+        "country": "Italy",
+        "bidding_zone": "IT-Sicily",
+        "technology": "solar",
+        "cluster_name": "Fenix Solar Farm",
+        "lat": 37.5731,
+        "lon": 14.8015,
+    },
+    {
+        "country_code": "IT",
+        "country": "Italy",
+        "bidding_zone": "IT-Sardinia",
+        "technology": "solar",
+        "cluster_name": "Guspini Solar Farm",
+        "lat": 39.6099,
+        "lon": 8.6244,
+    },
 
-    {"country_code": "BE", "country": "Belgium", "technology": "wind", "cluster_name": "North Sea offshore cluster", "lat": 51.4200, "lon": 2.8000},
-    {"country_code": "BE", "country": "Belgium", "technology": "solar", "cluster_name": "Flanders solar cluster", "lat": 50.9300, "lon": 4.0400},
+    # Belgium
+    {
+        "country_code": "BE",
+        "country": "Belgium",
+        "bidding_zone": "BE",
+        "technology": "wind-offshore",
+        "cluster_name": "Northwester 2",
+        "lat": 51.6859,
+        "lon": 2.7570,
+    },
 
-    {"country_code": "AT", "country": "Austria", "technology": "wind", "cluster_name": "Burgenland wind cluster", "lat": 47.8400, "lon": 16.5200},
-    {"country_code": "AT", "country": "Austria", "technology": "solar", "cluster_name": "Lower Austria solar cluster", "lat": 48.3800, "lon": 15.8900},
+    # Austria
+    {
+        "country_code": "AT",
+        "country": "Austria",
+        "bidding_zone": "AT",
+        "technology": "wind-onshore",
+        "cluster_name": "Pretul Wind Farm",
+        "lat": 47.5549,
+        "lon": 15.7534,
+    },
 
-    {"country_code": "CZ", "country": "Czechia", "technology": "wind", "cluster_name": "Northwest/Cheb wind cluster", "lat": 50.0800, "lon": 12.3700},
-    {"country_code": "CZ", "country": "Czechia", "technology": "solar", "cluster_name": "South Moravia solar cluster", "lat": 48.8600, "lon": 16.0500},
+    # Czechia
+    {
+        "country_code": "CZ",
+        "country": "Czechia",
+        "bidding_zone": "CZ",
+        "technology": "solar",
+        "cluster_name": "FVE Ralsko Solar Farm",
+        "lat": 50.6000,
+        "lon": 14.8900,
+    },
 
-    {"country_code": "PT", "country": "Portugal", "technology": "wind", "cluster_name": "Viana do Castelo/Minho wind cluster", "lat": 41.7000, "lon": -8.8300},
-    {"country_code": "PT", "country": "Portugal", "technology": "solar", "cluster_name": "Alentejo solar cluster", "lat": 38.0200, "lon": -7.8700},
+    # Portugal
+    {
+        "country_code": "PT",
+        "country": "Portugal",
+        "bidding_zone": "PT",
+        "technology": "solar",
+        "cluster_name": "Amareleja Solar Park",
+        "lat": 38.1801,
+        "lon": -7.2012,
+    },
 
-    {"country_code": "RO", "country": "Romania", "technology": "wind", "cluster_name": "Dobrogea wind cluster", "lat": 44.7300, "lon": 28.5000},
-    {"country_code": "RO", "country": "Romania", "technology": "solar", "cluster_name": "Oltenia solar cluster", "lat": 44.3200, "lon": 23.8000},
+    # Romania
+    {
+        "country_code": "RO",
+        "country": "Romania",
+        "bidding_zone": "RO",
+        "technology": "wind-onshore",
+        "cluster_name": "Fantanele-Cogealac Wind Farm",
+        "lat": 44.6091,
+        "lon": 28.5669,
+    },
 
-    {"country_code": "GR", "country": "Greece", "technology": "wind", "cluster_name": "Thrace wind cluster", "lat": 41.1300, "lon": 25.4000},
-    {"country_code": "GR", "country": "Greece", "technology": "solar", "cluster_name": "Central Greece solar cluster", "lat": 38.9000, "lon": 22.4300},
+    # Greece
+    {
+        "country_code": "GR",
+        "country": "Greece",
+        "bidding_zone": "GR",
+        "technology": "wind-onshore",
+        "cluster_name": "Kafireas Wind Farm",
+        "lat": 38.0501,
+        "lon": 24.5008,
+    },
 ]

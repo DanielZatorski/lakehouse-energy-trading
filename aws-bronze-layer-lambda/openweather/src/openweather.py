@@ -16,17 +16,21 @@ def fetch_current_weather(weather_points):
             "latitude": point["lat"],
             "longitude": point["lon"],
             "current": [
-                "temperature_2m",
-                "precipitation",
-                "relative_humidity_2m",
-                "rain",
-                "showers",
-                "wind_gusts_10m",
-                "wind_speed_10m",
-                "wind_direction_10m",
-                "shortwave_radiation",
-                "global_tilted_irradiance",
-                "diffuse_radiation",
+            "soil_temperature_0cm",
+            "temperature_2m",
+            "relative_humidity_2m",
+            "precipitation",
+            "cloud_cover",
+            "shortwave_radiation",
+            "direct_radiation",
+            "diffuse_radiation",
+            "global_tilted_irradiance",
+            "wind_speed_100m",
+            "wind_direction_100m",
+            "wind_gusts_10m",
+            "temperature_2m",
+            "surface_pressure",
+            "precipitation"
             ],
         }
 
@@ -38,6 +42,7 @@ def fetch_current_weather(weather_points):
             row = {
                 "country_code": point["country_code"],
                 "country": point["country"],
+                "bidding_zone": point["bidding_zone"],
                 "technology": point["technology"],
                 "cluster_name": point["cluster_name"],
                 "requested_lat": point["lat"],
@@ -49,29 +54,33 @@ def fetch_current_weather(weather_points):
                 "current_time": datetime.fromtimestamp(
                     current.Time(), tz=timezone.utc
                 ).isoformat(),
-                "temperature_2m": current.Variables(0).Value(),
-                "precipitation": current.Variables(1).Value(),
+                "soil_temperature_0cm": current.Variables(0).Value(),
+                "temperature_2m": current.Variables(1).Value(),
                 "relative_humidity_2m": current.Variables(2).Value(),
-                "rain": current.Variables(3).Value(),
-                "showers": current.Variables(4).Value(),
-                "wind_gusts_10m": current.Variables(5).Value(),
-                "wind_speed_10m": current.Variables(6).Value(),
-                "wind_direction_10m": current.Variables(7).Value(),
-                "shortwave_radiation":current.Variables(8).Value(),
-                "global_tilted_irradiance":current.Variables(9).Value(),
-                "diffuse_radiation": current.Variables(10).Value(),
+                "precipitation": current.Variables(3).Value(),
+                "cloud_cover": current.Variables(4).Value(),
+                "shortwave_radiation": current.Variables(5).Value(),
+                "direct_radiation": current.Variables(6).Value(),
+                "diffuse_radiation": current.Variables(7).Value(),
+                "global_tilted_irradiance": current.Variables(8).Value(),
+                "wind_speed_100m": current.Variables(9).Value(),
+                "wind_direction_100m": current.Variables(10).Value(),
+                "wind_gusts_10m": current.Variables(11).Value(),
+                "temperature_2m": current.Variables(12).Value(),
+                "surface_pressure": current.Variables(13).Value(),
+                "precipitation": current.Variables(14).Value()
             }
 
             results.append(row)
 
             print(
-                f"OK: {point['country_code']} {point['technology']} - "
+                f"OK: {point['bidding_zone']} {point['technology']} - "
                 f"{point['cluster_name']}"
             )
 
         except Exception as e:
             print(
-                f"ERROR: {point['country_code']} {point['technology']} - "
+                f"ERROR: {point['bidding_zone']} {point['technology']} - "
                 f"{point['cluster_name']}: {e}"
             )
 
