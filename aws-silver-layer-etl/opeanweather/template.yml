@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM app with Lambda that transforms bronze openweather into silver
+
+Globals:
+  Function:
+    Timeout: 900
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+
+Resources:
+  SilverWeatherFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: data-lake-energy-trade-silver-openweather
+      CodeUri: src/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          SILVER_BUCKET: data-lake-energy-trade
+          SILVER_PREFIX: silver/weather_current
+      Policies:
+        - S3ReadPolicy:
+            BucketName: data-lake-energy-trade
+        - S3WritePolicy:
+            BucketName: data-lake-energy-trade
+
+  AllowS3InvokeSilverWeather:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SilverWeatherFunction
+      Principal: s3.amazonaws.com
+      SourceArn: arn:aws:s3:::data-lake-energy-trade
+
+Outputs:
+  FunctionName:
+    Value: !Ref SilverWeatherFunction
+
+  FunctionArn:
+    Value: !GetAtt SilverWeatherFunction.Arn
