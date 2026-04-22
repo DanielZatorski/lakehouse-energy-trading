@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Silver layer ETL - transforms bronze ENTSOE JSONL into partitioned Parquet
+
+Globals:
+  Function:
+    Timeout: 900
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+
+Resources:
+  SilverEntsoeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: data-lake-energy-trade-silver-entsoe
+      CodeUri: src/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          SILVER_BUCKET: data-lake-energy-trade
+          SILVER_PREFIX: silver/entsoe
+      Policies:
+        - S3ReadPolicy:
+            BucketName: data-lake-energy-trade
+        - S3WritePolicy:
+            BucketName: data-lake-energy-trade
+
+  AllowS3InvokeSilverEntsoe:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SilverEntsoeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: arn:aws:s3:::data-lake-energy-trade
+
+Outputs:
+  FunctionName:
+    Value: !Ref SilverEntsoeFunction
+
+  FunctionArn:
+    Value: !GetAtt SilverEntsoeFunction.Arn
