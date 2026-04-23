@@ -1,17 +1,29 @@
 import io
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import boto3
 import pandas as pd
+import pyarrow as pa
+from pyiceberg.catalog import load_catalog
+from pyiceberg.exceptions import NoSuchTableError
+from pyiceberg.expressions import EqualTo
 
 s3 = boto3.client("s3")
 
 SILVER_BUCKET = os.environ["SILVER_BUCKET"]
 SILVER_PREFIX = os.environ["SILVER_PREFIX"]   # silver/weather_current
-GOLD_BUCKET = os.environ["GOLD_BUCKET"]
-GOLD_PREFIX = os.environ["GOLD_PREFIX"]       # gold/weather
+GOLD_BUCKET   = os.environ["GOLD_BUCKET"]
+GOLD_PREFIX   = os.environ["GOLD_PREFIX"]     # gold/weather
+GLUE_DATABASE = os.environ.get("GLUE_DATABASE", "energy_gold")
+AWS_REGION    = os.environ.get("AWS_REGION", "eu-central-1")
+
+catalog = load_catalog("glue", **{
+    "type": "glue",
+    "region_name": AWS_REGION,
+    "io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO",
+})
 
 # Physical plausibility bounds — values outside these windows are set to NULL
 # rather than silently poisoning downstream aggregations.
@@ -31,6 +43,9 @@ VALID_RANGES = {
 }
 
 RENEWABLE_TECHNOLOGIES = {"solar", "wind-onshore", "wind-offshore"}
+
+# Columns that must be UTC-aware timestamps in Iceberg
+TS_COLS = frozenset({"observation_timestamp_utc", "ingested_at"})
 
 
 def read_silver_partition(event_date: str) -> pd.DataFrame:
@@ -193,36 +208,66 @@ def build_agg_daily_bidding_zone(fact: pd.DataFrame) -> pd.DataFrame:
     return agg
 
 
-def write_gold_parquet(df: pd.DataFrame, table_name: str, event_date: str) -> str:
+# ---------------------------------------------------------------------------
+# Iceberg write helpers
+# ---------------------------------------------------------------------------
+
+def _to_arrow(df: pd.DataFrame) -> pa.Table:
+    """Fix event_date (string → date32) and timestamp columns (naive → UTC) for Iceberg."""
+    df = df.copy()
+
+    if "event_date" in df.columns:
+        df["event_date"] = pd.to_datetime(df["event_date"]).dt.date
+
+    for col in TS_COLS & set(df.columns):
+        if not pd.api.types.is_datetime64_any_dtype(df[col]):
+            df[col] = pd.to_datetime(df[col], utc=True)
+        elif df[col].dt.tz is None:
+            df[col] = df[col].dt.tz_localize("UTC")
+
+    table = pa.Table.from_pandas(df, preserve_index=False)
+
+    # Iceberg v2 rejects pa.null() — cast all-null columns to string
+    for i, field in enumerate(table.schema):
+        if pa.types.is_null(field.type):
+            table = table.set_column(i, field.name, table.column(i).cast(pa.string()))
+
+    return table
+
+
+def write_iceberg_table(df: pd.DataFrame, table_name: str, event_date: str) -> str:
     if df.empty:
         print(f"No data to write for '{table_name}'")
         return ""
 
-    run_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    key = f"{GOLD_PREFIX}/{table_name}/event_date={event_date}/{table_name}_{run_ts}.parquet"
+    pa_table = _to_arrow(df)
+    identifier = f"{GLUE_DATABASE}.{table_name}"
+    location = f"s3://{GOLD_BUCKET}/{GOLD_PREFIX}/iceberg/{table_name}"
 
-    buf = io.BytesIO()
-    df.to_parquet(buf, index=False, engine="pyarrow")
-    buf.seek(0)
+    try:
+        tbl = catalog.load_table(identifier)
+    except NoSuchTableError:
+        tbl = catalog.create_table(identifier, schema=pa_table.schema, location=location)
+        print(f"Created Iceberg table: {identifier}")
 
-    s3.put_object(
-        Bucket=GOLD_BUCKET,
-        Key=key,
-        Body=buf.getvalue(),
-        ContentType="application/octet-stream",
-    )
+    # Delete-then-append makes reruns idempotent for the same event_date
+    tbl.delete(EqualTo("event_date", date.fromisoformat(event_date)))
+    tbl.append(pa_table)
 
-    uri = f"s3://{GOLD_BUCKET}/{key}"
-    print(f"Wrote {len(df)} rows → {uri}")
-    return uri
+    print(f"Wrote {len(df)} rows → iceberg:{identifier} (event_date={event_date})")
+    return identifier
 
+
+# ---------------------------------------------------------------------------
+# Orchestrator
+# ---------------------------------------------------------------------------
 
 def process_date(event_date: str) -> dict:
     print(f"Gold weather ETL — event_date={event_date}")
 
     raw = read_silver_partition(event_date)
     if raw.empty:
-        return {"event_date": event_date, "written_files": [], "row_counts": {}}
+        return {"event_date": event_date, "written_tables": [], "row_counts": {}}
 
     fact = build_fact_hourly_weather(raw)
     agg = build_agg_daily_bidding_zone(fact)
@@ -231,12 +276,12 @@ def process_date(event_date: str) -> dict:
     counts = {}
 
     for df, table in [(fact, "fact_hourly_weather"), (agg, "agg_daily_bidding_zone")]:
-        uri = write_gold_parquet(df, table, event_date)
-        if uri:
-            written.append(uri)
+        tbl = write_iceberg_table(df, table, event_date)
+        if tbl:
+            written.append(tbl)
         counts[table] = len(df)
 
-    return {"event_date": event_date, "written_files": written, "row_counts": counts}
+    return {"event_date": event_date, "written_tables": written, "row_counts": counts}
 
 
 def lambda_handler(event, context):

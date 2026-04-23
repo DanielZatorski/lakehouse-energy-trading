@@ -1,17 +1,29 @@
 import io
 import json
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import boto3
 import pandas as pd
+import pyarrow as pa
+from pyiceberg.catalog import load_catalog
+from pyiceberg.exceptions import NoSuchTableError
+from pyiceberg.expressions import EqualTo
 
 s3 = boto3.client("s3")
 
 SILVER_BUCKET = os.environ["SILVER_BUCKET"]
 SILVER_PREFIX = os.environ["SILVER_PREFIX"]   # silver/entsoe
-GOLD_BUCKET = os.environ["GOLD_BUCKET"]
-GOLD_PREFIX = os.environ["GOLD_PREFIX"]       # gold/entsoe
+GOLD_BUCKET   = os.environ["GOLD_BUCKET"]
+GOLD_PREFIX   = os.environ["GOLD_PREFIX"]     # gold/entsoe
+GLUE_DATABASE = os.environ.get("GLUE_DATABASE", "energy_gold")
+AWS_REGION    = os.environ.get("AWS_REGION", "eu-central-1")
+
+catalog = load_catalog("glue", **{
+    "type": "glue",
+    "region_name": AWS_REGION,
+    "io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO",
+})
 
 RENEWABLE_TECHNOLOGIES = {
     "solar",
@@ -25,10 +37,13 @@ RENEWABLE_TECHNOLOGIES = {
     "other_renewable",
 }
 
-GENERATION_DATASETS   = {"actual_generation_per_production_type"}
-LOAD_DATASETS         = {"actual_total_load", "day_ahead_total_load_forecast"}
-PRICE_DATASETS        = {"day_ahead_energy_prices"}
-FORECAST_DATASETS     = {"day_ahead_aggregated_generation", "generation_forecast_wind_solar"}
+GENERATION_DATASETS = {"actual_generation_per_production_type"}
+LOAD_DATASETS       = {"actual_total_load", "day_ahead_total_load_forecast"}
+PRICE_DATASETS      = {"day_ahead_energy_prices"}
+FORECAST_DATASETS   = {"day_ahead_aggregated_generation", "generation_forecast_wind_solar"}
+
+# Columns that must be UTC-aware timestamps in Iceberg
+TS_COLS = frozenset({"timestamp_utc", "ingested_at", "period_start", "period_end"})
 
 
 # ---------------------------------------------------------------------------
@@ -234,31 +249,53 @@ def build_agg_daily_generation_mix(fact_gen: pd.DataFrame, event_date: str) -> p
 
 
 # ---------------------------------------------------------------------------
-# Write helper
+# Iceberg write helpers
 # ---------------------------------------------------------------------------
 
-def write_gold_parquet(df: pd.DataFrame, table_name: str, event_date: str) -> str:
+def _to_arrow(df: pd.DataFrame) -> pa.Table:
+    """Fix event_date (string → date32) and timestamp columns (naive → UTC) for Iceberg."""
+    df = df.copy()
+
+    if "event_date" in df.columns:
+        df["event_date"] = pd.to_datetime(df["event_date"]).dt.date
+
+    for col in TS_COLS & set(df.columns):
+        if not pd.api.types.is_datetime64_any_dtype(df[col]):
+            df[col] = pd.to_datetime(df[col], utc=True)
+        elif df[col].dt.tz is None:
+            df[col] = df[col].dt.tz_localize("UTC")
+
+    table = pa.Table.from_pandas(df, preserve_index=False)
+
+    # Iceberg v2 rejects pa.null() — cast all-null columns to string
+    for i, field in enumerate(table.schema):
+        if pa.types.is_null(field.type):
+            table = table.set_column(i, field.name, table.column(i).cast(pa.string()))
+
+    return table
+
+
+def write_iceberg_table(df: pd.DataFrame, table_name: str, event_date: str) -> str:
     if df.empty:
         print(f"No data to write for '{table_name}'")
         return ""
 
-    run_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    key = f"{GOLD_PREFIX}/{table_name}/event_date={event_date}/{table_name}_{run_ts}.parquet"
+    pa_table = _to_arrow(df)
+    identifier = f"{GLUE_DATABASE}.{table_name}"
+    location = f"s3://{GOLD_BUCKET}/{GOLD_PREFIX}/iceberg/{table_name}"
 
-    buf = io.BytesIO()
-    df.to_parquet(buf, index=False, engine="pyarrow")
-    buf.seek(0)
+    try:
+        tbl = catalog.load_table(identifier)
+    except NoSuchTableError:
+        tbl = catalog.create_table(identifier, schema=pa_table.schema, location=location)
+        print(f"Created Iceberg table: {identifier}")
 
-    s3.put_object(
-        Bucket=GOLD_BUCKET,
-        Key=key,
-        Body=buf.getvalue(),
-        ContentType="application/octet-stream",
-    )
+    # Delete-then-append makes reruns idempotent for the same event_date
+    tbl.delete(EqualTo("event_date", date.fromisoformat(event_date)))
+    tbl.append(pa_table)
 
-    uri = f"s3://{GOLD_BUCKET}/{key}"
-    print(f"Wrote {len(df)} rows → {uri}")
-    return uri
+    print(f"Wrote {len(df)} rows → iceberg:{identifier} (event_date={event_date})")
+    return identifier
 
 
 # ---------------------------------------------------------------------------
@@ -274,43 +311,43 @@ def process_date(event_date: str) -> dict:
     # --- actual generation -----------------------------------------------
     gen_raw = read_silver_multi(event_date, GENERATION_DATASETS)
     fact_gen = build_fact_generation(gen_raw)
-    uri = write_gold_parquet(fact_gen, "fact_generation", event_date)
-    if uri:
-        written.append(uri)
+    tbl = write_iceberg_table(fact_gen, "fact_generation", event_date)
+    if tbl:
+        written.append(tbl)
     counts["fact_generation"] = len(fact_gen)
 
     # --- daily generation mix (derived from fact_generation) -------------
     agg_mix = build_agg_daily_generation_mix(fact_gen, event_date)
-    uri = write_gold_parquet(agg_mix, "agg_daily_generation_mix", event_date)
-    if uri:
-        written.append(uri)
+    tbl = write_iceberg_table(agg_mix, "agg_daily_generation_mix", event_date)
+    if tbl:
+        written.append(tbl)
     counts["agg_daily_generation_mix"] = len(agg_mix)
 
     # --- load (actual + day-ahead forecast) ------------------------------
     load_raw = read_silver_multi(event_date, LOAD_DATASETS)
     fact_load = build_fact_load(load_raw)
-    uri = write_gold_parquet(fact_load, "fact_load", event_date)
-    if uri:
-        written.append(uri)
+    tbl = write_iceberg_table(fact_load, "fact_load", event_date)
+    if tbl:
+        written.append(tbl)
     counts["fact_load"] = len(fact_load)
 
     # --- day-ahead prices ------------------------------------------------
     price_raw = read_silver_multi(event_date, PRICE_DATASETS)
     fact_prices = build_fact_prices(price_raw)
-    uri = write_gold_parquet(fact_prices, "fact_prices", event_date)
-    if uri:
-        written.append(uri)
+    tbl = write_iceberg_table(fact_prices, "fact_prices", event_date)
+    if tbl:
+        written.append(tbl)
     counts["fact_prices"] = len(fact_prices)
 
     # --- generation forecast (day-ahead + wind/solar) --------------------
     forecast_raw = read_silver_multi(event_date, FORECAST_DATASETS)
     fact_forecast = build_fact_generation_forecast(forecast_raw)
-    uri = write_gold_parquet(fact_forecast, "fact_generation_forecast", event_date)
-    if uri:
-        written.append(uri)
+    tbl = write_iceberg_table(fact_forecast, "fact_generation_forecast", event_date)
+    if tbl:
+        written.append(tbl)
     counts["fact_generation_forecast"] = len(fact_forecast)
 
-    return {"event_date": event_date, "written_files": written, "row_counts": counts}
+    return {"event_date": event_date, "written_tables": written, "row_counts": counts}
 
 
 def lambda_handler(event, context):

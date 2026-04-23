@@ -1,11 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Gold layer ETL — aggregates silver weather data into reporting-ready tables
+Description: Gold layer ETL — aggregates silver weather data into Iceberg reporting tables
 
 Globals:
   Function:
     Timeout: 900
-    Runtime: python3.13
+    MemorySize: 1024
     Architectures:
       - x86_64
 
@@ -14,19 +14,29 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: data-lake-energy-trade-gold-openweather
-      CodeUri: src/
-      Handler: handler.lambda_handler
+      PackageType: Image
+      ImageConfig:
+        Command: ["handler.lambda_handler"]
       Environment:
         Variables:
           SILVER_BUCKET: data-lake-energy-trade
           SILVER_PREFIX: silver/weather_current
           GOLD_BUCKET: data-lake-energy-trade
           GOLD_PREFIX: gold/weather
+          GLUE_DATABASE: energy_gold
       Policies:
         - S3ReadPolicy:
             BucketName: data-lake-energy-trade
         - S3WritePolicy:
             BucketName: data-lake-energy-trade
+        - Statement:
+            - Effect: Allow
+              Action:
+                - glue:GetDatabase
+                - glue:GetTable
+                - glue:CreateTable
+                - glue:UpdateTable
+              Resource: "*"
       Events:
         DailySchedule:
           Type: Schedule
@@ -34,6 +44,10 @@ Resources:
             # Runs at 04:00 UTC every day — silver ETL finishes well before this
             Schedule: cron(0 4 * * ? *)
             Input: '{}'
+    Metadata:
+      DockerTag: latest
+      DockerContext: ./src
+      Dockerfile: Dockerfile
 
 Outputs:
   FunctionName:

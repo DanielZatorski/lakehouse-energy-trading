@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Data catalog — Glue databases and Athena workgroup for the energy trading lakehouse
+
+Resources:
+
+  # ---------------------------------------------------------------------------
+  # Glue Databases
+  # Gold tables are registered automatically by PyIceberg on first Lambda write.
+  # Silver tables are internal — queried only by the gold Lambda, not via Athena.
+  # ---------------------------------------------------------------------------
+
+  GlueDBSilver:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: energy_silver
+        Description: Silver layer — cleaned and deduplicated ENTSOE + weather Parquet
+
+  GlueDBGold:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: energy_gold
+        Description: Gold layer — Iceberg fact and aggregate tables
+
+  # ---------------------------------------------------------------------------
+  # Athena Workgroup
+  # ---------------------------------------------------------------------------
+
+  AthenaWorkgroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: energy-trading
+      Description: Athena workgroup for energy trading lakehouse queries
+      WorkGroupConfiguration:
+        ResultConfiguration:
+          OutputLocation: s3://data-lake-energy-trade/athena-results/
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+        BytesScannedCutoffPerQuery: 10737418240  # 10 GB hard limit per query
+
+Outputs:
+  GlueSilverDatabase:
+    Value: !Ref GlueDBSilver
+    Description: Glue database name for silver layer
+
+  GlueGoldDatabase:
+    Value: !Ref GlueDBGold
+    Description: Glue database name for gold layer
+
+  AthenaWorkgroup:
+    Value: !Ref AthenaWorkgroup
+    Description: Athena workgroup for lakehouse queries
+
+  AthenaResultsBucket:
+    Value: s3://data-lake-energy-trade/athena-results/
+    Description: S3 location for Athena query results
