@@ -1,0 +1,13 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "data-lake-energy-trade-gold-entsoe-stack"
+resolve_s3 = true
+s3_prefix = "data-lake-energy-trade-gold-entsoe-stack"
+region = "eu-central-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+
+[default.global.parameters]
+region = "eu-central-1"
