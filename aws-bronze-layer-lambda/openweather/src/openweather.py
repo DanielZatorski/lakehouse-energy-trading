@@ -16,21 +16,18 @@ def fetch_current_weather(weather_points):
             "latitude": point["lat"],
             "longitude": point["lon"],
             "current": [
-            "soil_temperature_0cm",
-            "temperature_2m",
-            "relative_humidity_2m",
-            "precipitation",
-            "cloud_cover",
-            "shortwave_radiation",
-            "direct_radiation",
-            "diffuse_radiation",
-            "global_tilted_irradiance",
-            "wind_speed_100m",
-            "wind_direction_100m",
-            "wind_gusts_10m",
-            "temperature_2m",
-            "surface_pressure",
-            "precipitation"
+                "temperature_2m",
+                "relative_humidity_2m",
+                "precipitation",
+                "cloud_cover",
+                "shortwave_radiation",
+                "direct_radiation",
+                "diffuse_radiation",
+                "global_tilted_irradiance",
+                "wind_speed_100m",
+                "wind_direction_100m",
+                "wind_gusts_10m",
+                "surface_pressure",
             ],
         }
 
@@ -54,21 +51,18 @@ def fetch_current_weather(weather_points):
                 "current_time": datetime.fromtimestamp(
                     current.Time(), tz=timezone.utc
                 ).isoformat(),
-                "soil_temperature_0cm": current.Variables(0).Value(),
-                "temperature_2m": current.Variables(1).Value(),
-                "relative_humidity_2m": current.Variables(2).Value(),
-                "precipitation": current.Variables(3).Value(),
-                "cloud_cover": current.Variables(4).Value(),
-                "shortwave_radiation": current.Variables(5).Value(),
-                "direct_radiation": current.Variables(6).Value(),
-                "diffuse_radiation": current.Variables(7).Value(),
-                "global_tilted_irradiance": current.Variables(8).Value(),
-                "wind_speed_100m": current.Variables(9).Value(),
-                "wind_direction_100m": current.Variables(10).Value(),
-                "wind_gusts_10m": current.Variables(11).Value(),
-                "temperature_2m": current.Variables(12).Value(),
-                "surface_pressure": current.Variables(13).Value(),
-                "precipitation": current.Variables(14).Value()
+                "temperature_2m": current.Variables(0).Value(),
+                "relative_humidity_2m": current.Variables(1).Value(),
+                "precipitation": current.Variables(2).Value(),
+                "cloud_cover": current.Variables(3).Value(),
+                "shortwave_radiation": current.Variables(4).Value(),
+                "direct_radiation": current.Variables(5).Value(),
+                "diffuse_radiation": current.Variables(6).Value(),
+                "global_tilted_irradiance": current.Variables(7).Value(),
+                "wind_speed_100m": current.Variables(8).Value(),
+                "wind_direction_100m": current.Variables(9).Value(),
+                "wind_gusts_10m": current.Variables(10).Value(),
+                "surface_pressure": current.Variables(11).Value()
             }
 
             results.append(row)

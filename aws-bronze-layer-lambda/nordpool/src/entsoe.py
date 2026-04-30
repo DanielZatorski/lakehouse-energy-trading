@@ -39,18 +39,12 @@ ALL_DATASETS = list(DATASET_CONFIGS.keys())
 
 
 
-def api_ts(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).strftime("%Y%m%d%H%M")
-
 def get_hourly_window():
     now = datetime.now(timezone.utc)
     period_end_dt = now.replace(minute=0, second=0, microsecond=0)
     period_start_dt = period_end_dt - timedelta(hours=1)
 
     return api_ts(period_start_dt), api_ts(period_end_dt)
-
-def api_ts(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).strftime("%Y%m%d%H%M")
 
 def get_last_closed_hour_window():
     now = datetime.now(timezone.utc)
