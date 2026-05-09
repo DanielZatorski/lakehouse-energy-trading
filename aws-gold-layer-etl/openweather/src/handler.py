@@ -9,6 +9,7 @@ import pyarrow as pa
 from pyiceberg.catalog import load_catalog
 from pyiceberg.exceptions import NoSuchTableError
 from pyiceberg.expressions import EqualTo
+from schema import SCHEMAS
 
 s3 = boto3.client("s3")
 
@@ -50,8 +51,10 @@ TS_COLS = frozenset({"observation_timestamp_utc", "ingested_at"})
 
 def read_silver_partition(event_date: str) -> pd.DataFrame:
     prefix = f"{SILVER_PREFIX}/event_date={event_date}/"
-    response = s3.list_objects_v2(Bucket=SILVER_BUCKET, Prefix=prefix)
-    objects = response.get("Contents", [])
+    paginator = s3.get_paginator("list_objects_v2")
+    objects = []
+    for page in paginator.paginate(Bucket=SILVER_BUCKET, Prefix=prefix):
+        objects.extend(page.get("Contents", []))
 
     if not objects:
         print(f"No files at s3://{SILVER_BUCKET}/{prefix}")
@@ -247,12 +250,14 @@ def write_iceberg_table(df: pd.DataFrame, table_name: str, event_date: str) -> s
     try:
         tbl = catalog.load_table(identifier)
     except NoSuchTableError:
-        tbl = catalog.create_table(identifier, schema=pa_table.schema, location=location)
-        print(f"Created Iceberg table: {identifier}")
+        explicit_schema = SCHEMAS[table_name]
+        tbl = catalog.create_table(identifier, schema=explicit_schema, location=location)
+        with tbl.update_spec() as update:
+            update.add_identity("event_date")
+        print(f"Created Iceberg table with explicit schema: {identifier}")
 
-    # Delete-then-append makes reruns idempotent for the same event_date
-    tbl.delete(EqualTo("event_date", date.fromisoformat(event_date)))
-    tbl.append(pa_table)
+    # Single atomic snapshot — no data-loss window between delete and append
+    tbl.overwrite(pa_table, overwrite_filter=EqualTo("event_date", date.fromisoformat(event_date)))
 
     print(f"Wrote {len(df)} rows → iceberg:{identifier} (event_date={event_date})")
     return identifier

@@ -9,6 +9,7 @@ import pyarrow as pa
 from pyiceberg.catalog import load_catalog
 from pyiceberg.exceptions import NoSuchTableError
 from pyiceberg.expressions import EqualTo
+from schema import SCHEMAS
 
 s3 = boto3.client("s3")
 
@@ -52,8 +53,10 @@ TS_COLS = frozenset({"timestamp_utc", "ingested_at", "period_start", "period_end
 
 def read_silver_dataset(event_date: str, dataset: str) -> pd.DataFrame:
     prefix = f"{SILVER_PREFIX}/event_date={event_date}/dataset={dataset}/"
-    response = s3.list_objects_v2(Bucket=SILVER_BUCKET, Prefix=prefix)
-    objects = response.get("Contents", [])
+    paginator = s3.get_paginator("list_objects_v2")
+    objects = []
+    for page in paginator.paginate(Bucket=SILVER_BUCKET, Prefix=prefix):
+        objects.extend(page.get("Contents", []))
 
     if not objects:
         print(f"No files at s3://{SILVER_BUCKET}/{prefix}")
@@ -188,6 +191,18 @@ def build_fact_generation_forecast(df: pd.DataFrame) -> pd.DataFrame:
     return df[[c for c in col_order if c in df.columns]].reset_index(drop=True)
 
 
+def _resolution_to_hours(res: str) -> float:
+    """Parse ISO 8601 durations (PT15M, PT30M, PT60M, PT1H) → fractional hours."""
+    if not isinstance(res, str):
+        return 1.0
+    res = res.upper()
+    if "H" in res:
+        return float(res.replace("PT", "").replace("H", ""))
+    if "M" in res:
+        return float(res.replace("PT", "").replace("M", "")) / 60
+    return 1.0
+
+
 def build_agg_daily_generation_mix(fact_gen: pd.DataFrame, event_date: str) -> pd.DataFrame:
     """Daily generation mix per (area, technology) with area-level renewable share."""
     if fact_gen.empty:
@@ -204,10 +219,17 @@ def build_agg_daily_generation_mix(fact_gen: pd.DataFrame, event_date: str) -> p
     if gen.empty:
         return pd.DataFrame()
 
+    # Convert MW readings to MWh using the actual resolution (15-min data ≠ 1 MWh per row)
+    if "resolution" in gen.columns:
+        gen["_res_hours"] = gen["resolution"].map(_resolution_to_hours)
+        gen["quantity_mwh"] = gen["quantity_mw"] * gen["_res_hours"]
+    else:
+        gen["quantity_mwh"] = gen["quantity_mw"]
+
     agg = (
         gen.groupby(group_cols, dropna=False)
         .agg(
-            total_mwh         =("quantity_mw", "sum"),   # hourly data → MWh per hour summed
+            total_mwh         =("quantity_mwh", "sum"),
             avg_mw            =("quantity_mw", "mean"),
             peak_mw           =("quantity_mw", "max"),
             min_mw            =("quantity_mw", "min"),
@@ -287,12 +309,14 @@ def write_iceberg_table(df: pd.DataFrame, table_name: str, event_date: str) -> s
     try:
         tbl = catalog.load_table(identifier)
     except NoSuchTableError:
-        tbl = catalog.create_table(identifier, schema=pa_table.schema, location=location)
-        print(f"Created Iceberg table: {identifier}")
+        explicit_schema = SCHEMAS[table_name]
+        tbl = catalog.create_table(identifier, schema=explicit_schema, location=location)
+        with tbl.update_spec() as update:
+            update.add_identity("event_date")
+        print(f"Created Iceberg table with explicit schema: {identifier}")
 
-    # Delete-then-append makes reruns idempotent for the same event_date
-    tbl.delete(EqualTo("event_date", date.fromisoformat(event_date)))
-    tbl.append(pa_table)
+    # Single atomic snapshot — no data-loss window between delete and append
+    tbl.overwrite(pa_table, overwrite_filter=EqualTo("event_date", date.fromisoformat(event_date)))
 
     print(f"Wrote {len(df)} rows → iceberg:{identifier} (event_date={event_date})")
     return identifier
