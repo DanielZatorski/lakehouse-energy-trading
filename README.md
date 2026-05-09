@@ -198,6 +198,41 @@ lambda-name/
 
 ---
 
+## Backfilling Historical Data
+
+Because silver Parquet files accumulate automatically every hour as long as the bronze and silver Lambdas are running, the gold layer can be backfilled for any past date at any time — the data is already in S3 waiting to be processed.
+
+**How it works:**
+
+The gold Lambda accepts an optional `{"date": "YYYY-MM-DD"}` payload. When you invoke it for a past date, it reads that date's silver partition and writes the Iceberg table partition for that date — exactly the same as a normal daily run, just pointed at history.
+
+```
+silver/entsoe/event_date=2026-04-01/*.parquet  ← already exists
+        ↓  gold Lambda invoked with {"date": "2026-04-01"}
+gold/entsoe/iceberg/fact_generation/data/event_date=2026-04-01/*.parquet  ← written now
+```
+
+A new Iceberg snapshot is created that includes the new partition alongside all existing ones. Athena sees the updated metadata immediately — the historical data becomes queryable as soon as the Lambda finishes.
+
+**Backfill a date range via AWS CLI:**
+
+```bash
+# Backfill data snapshots for both gold Lambdas
+for d in $(seq -w 1 30); do
+  aws lambda invoke \
+    --function-name data-lake-energy-trade-gold-entsoe \
+    --payload "{\"date\": \"2026-04-$d\"}" \
+    --invocation-type Event \
+    --cli-binary-format raw-in-base64-out /dev/null
+done
+```
+
+Using `--invocation-type Event` fires all invocations asynchronously so you don't wait for each one. All dates process in parallel on AWS.
+
+**Reruns are safe:** `overwrite()` replaces only the partition for the specified date — it never touches other dates. Running the same date twice produces the same result.
+
+---
+
 ## Local Orchestration with Airflow
 
 For manual runs or backfilling, Apache Airflow runs locally in Docker and mirrors the same flow:
